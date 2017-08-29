@@ -1,5 +1,5 @@
 ### Installation (Gradle)
-```compile group: "org.http4k", name: "http4k-contract", version: "2.11.3"```
+```compile group: "org.http4k", name: "http4k-contract", version: "2.23.4"```
 
 ### About
 The `http4k-contract` module adds a much more sophisticated routing mechanism to that available in `http4k-core`. It adds the facility 
@@ -12,7 +12,7 @@ combined into `RouteModules`, which have the following features:
 (http://json-schema.org/) models for messages.
 - **Security:** to secure the `Routes`  against unauthorised access. Current implementations include `ApiKey`.
 
-<script src="http://gist-it.appspot.com/https://github.com/http4k/http4k/blob/master/src/docs/guide/modules/contracts/example.kt"></script>
+<script src="https://gist-it.appspot.com/https://github.com/http4k/http4k/blob/master/src/docs/guide/modules/contracts/example.kt"></script>
 
 When launched, Swagger format documentation (including JSON schema models) can be found at the route of the module.
 

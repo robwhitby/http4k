@@ -2,6 +2,88 @@
 
 This list is not currently intended to be all-encompassing - it will document major and breaking API changes with their rationale when appropriate:
 
+### v2.23.4
+- Switch XML generation to Gson over Jackson because Jackson doesn't handle uppercase field names well.
+- Switch native XML parsed type to Document over Node.
+
+### v2.23.3
+- New algorithm for XML data class deserialisation, so un-deprecated XML methods.
+
+### v2.23.2
+- Deprecated methods in XML support due to limitation with underlying Jackson implementation.
+
+### v2.23.1
+- Fixed bug with GenerateXmlDataClasses filter
+
+### v2.23.0
+- Renamed `http4k-format-jackson-xml` module to `http4k-format-xml`.
+- Improved XML unmarshalling support.
+
+### v2.22.1
+- Fixed 36: Form entry is too strict with content encoding.
+
+### v2.22.0
+- Added `http4k-format-jackson-xml` module, with XML parsing support.
+- Upgrade several dependencies
+
+### v2.21.2
+- Fixed Hamkrest matchers to be on HttpMessage and not Http Request.
+
+### v2.21.1
+- Default body Content Negotiation strategy changed to None
+
+### v2.21.0
+- Converted Content-Negotiation strategy from an Enum to an interface, so that users can define their own strategies. We also now check encoding so there are 4-built in strategies to choose from: Strict, StrictNoDirective, NonStrict and None.
+
+### v2.20.1
+- Fixed #31 - Matching of segments in URIs is done after URLs are decoded, which results in not capturing encoded slashes in the path segments.
+
+### v2.20.0
+- Fixed #30 - CachingClasspath template ResourceLoader not working with non-root packages.
+
+### v2.19.0
+- Fixed #29 - webdriver submission of text area.
+- Http clients now use a new instance of the default for each instantiation. Previously there was a shared instance.
+- Add regex body type for parsing values out of bodies, and "None" option for content negotiation.
+
+### v2.18.3
+- Fix AWS request signing for requests containing empty path 
+
+### v2.18.2
+- Fix AWS request signing for requests containing path with special characters 
+
+### v2.18.1
+- Added support for newRequest() in new `RouteBinder` mechanic.
+
+### v2.18.0
+- Add support for unlimited nesting for `routes()` blocks. Removed the raw `Route` object, which can be replaced with `Router` or `RoutingHttpHandler` where appropriate.
+- As part of above, rejigged route setup logic. Deprecated old routing structure, so now  `"/path" to GET bind` is `"/path" bind GET to`. To fix deprecation, simply switch the calls to "to" and "bind" in routing setup. 
+- Rename of `bind()` in `http4k-contract` to be `bindContract()`
+
+### v2.17.2
+- Added missing eclectic HTTP method. :)
+
+### v2.17.1
+- Added GZip filters to `http4k-core` to zip request and response bodies.
+
+### v2.16.1
+- Improved messages for `http4k-testing-hamkrest` matchers.
+
+### v2.16.0
+- Added `http4k-testing-hamkrest` which contains a set of Hamkrest matchers for Http4k objects.
+
+### v2.15.0
+- More features for `http4k-testing-webdriver`. Cookie support added.
+
+### v2.14.0
+- More features for `http4k-testing-webdriver`. We now support Form entry and submission.
+
+### v2.13.0
+- More features for `http4k-testing-webdriver`.
+
+### v2.12.0
+- Added `http4k-testing-webdriver` module, an ultralight Selenium WebDriver for **http4k** apps
+
 ### v2.11.3
 - Fix #26 - GenerateDataClasses does not recurse into nested object trees
 

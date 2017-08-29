@@ -10,7 +10,7 @@ For our purposes, we needed something that:
 1. Provides typesafe HTTP message deconstruction/construction (in this case via Lenses).
 1. Automatically deals with contract breaches (missing/invalid params etc) to remove boilerplate.
 1. Absolutely no magic involved: No reflection. No annotations.
-1. Minimal dependencies (`http4k-core` has zero).
+1. Minimal dependencies (apart from the Kotlin StdLib, `http4k-core` has zero).
 1. Automatic generation of Swagger documentation (including JSON Schema models).
 1. Has a symmetric server/client API (`HttpHandler` should just be `Request -> Response`).
 1. Has immutable Request/Response objects.
@@ -18,7 +18,7 @@ For our purposes, we needed something that:
 **http4k** ticks all of these boxes. 
 
 It allow us to construct entire suites of services which can be tested either wired together without HTTP, or spun up in containers 
-in 1 LOC. The symmetric HTTP API also allows filter chains (often called interceptors in other frameworks) to be constructed into reusable units/stacks for both 
+in 1 LOC. The symmetric HTTP API also allows Filter chains (often called "Middleware" or "Interceptors" in other frameworks) to be constructed into reusable units/stacks for both 
 server and client sides (eg. logging/metrics/caching...) since they can be composed together for later use. 
 
 As a bonus, we can also easily create simple Fake servers for any HTTP contract, which means (in combination with CDC suites) you can end-to-end test micro-services in an outside-in way (using GOOS-style acceptance tests).
@@ -32,25 +32,28 @@ Scenarios such as "what happens if this HTTP dependency continually takes > 5 se
 val handler: HttpHandler = { request: Request -> Response(OK) }
 ```
 * Pre/post processing is done using a `Filter`, which is modelled as `(HttpHandler) -> HttpHandler`. Filters can therefore be composed together to make reusable "stacks" of behaviour which can be applied to a terminating `HttpHandler` - to yield 
-a decorated `HttpHander`:
+a decorated `HttpHandl
+er`:
 ```kotlin
-    val filter: Filter = Filter { next: HttpHandler -> request: Request -> next(request).header("my response header", "value")} }
+    val filter: Filter = Filter { next: HttpHandler ->
+        { request: Request -> next(request).header("my response header", "value") }
+    }
     val decorated: HttpHandler = filter.then(handler)
 ```
-* Binding an `HttpHandler` to a path and HTTP verb yields a `Route`:
+* Binding an `HttpHandler` to a path and HTTP verb yields a `RoutingHttpHandler`, which is both an `HttpHandler` and a`Router`:
 ```kotlin
-val route: Route = "/path" to GET bind { Response(OK).body("you GET bob") }
+val route: RoutingHttpHandler = "/path" bind GET to { Response(OK).body("you GET bob") }
 ```
-* `Routes` can be combined together into a `RoutingHttpHandler`, which is both an `HttpHandler` and a`Router`:
+* `RoutingHttpHandler`s can be grouped together:
 ```kotlin
 val app: RoutingHttpHandler = routes(
-    "bob" to GET bind { Response(OK).body("you GET bob") },
-    "rita" to POST bind { Response(OK).body("you POST rita") },
-    "sue" to DELETE bind { Response(OK).body("you DELETE sue") }
+    "bob" bind GET to { Response(OK).body("you GET bob") },
+    "rita" bind POST to { Response(OK).body("you POST rita") },
+    "sue" bind DELETE to { Response(OK).body("you DELETE sue") }
 )
 ```
 * A `Router` is a selective request handler, which attempts to match a request. If it cannot, processing falls through to the next `Router` in the list.
-* `Routers` can be combined together to form another `HttpHandler`:
+* `Routers` can be combined together (under particular context roots) to form another `RoutingHttpHandler`:
 ```kotlin
 val bigApp: HttpHandler = routes(
     "/this" bind app, 

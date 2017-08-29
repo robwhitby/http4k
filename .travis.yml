@@ -1,16 +1,31 @@
+#https://docs.travis-ci.com/user/languages/java/#Caching
+before_cache:
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
 matrix:
   include:
-    - language: java
+    - stage: build
+      language: java
       jdk: oraclejdk8
       script:
       - "./gradlew check"
       after_success:
       - "./gradlew jacocoRootReport coveralls"
-      - "travis_wait 60 ./release-ci.sh"
       cache:
         directories:
         - "$HOME/.m2"
         - "$HOME/.gradle"
-    - language: python
+    - stage: bintray
+      language: bash
+      script: "./release-ci.sh"
+    - stage: docs
+      language: python
       script:
-        - "./release-site.sh"
+      - "./release-site.sh"
+    - stage: maven central
+      script: "travis_wait 90 ./release-maven-central.sh"
+      language: bash

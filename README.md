@@ -5,7 +5,7 @@
 <a href="https://coveralls.io/github/http4k/http4k?branch=master"><img alt="coverage" src="https://coveralls.io/repos/http4k/http4k/badge.svg?branch=master"></a>
 <a href="http//www.apache.org/licenses/LICENSE-2.0"><img alt="GitHub license" src="https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat"></a>
 <a href="https://bintray.com/http4k/maven/http4k-core/_latestVersion"><img alt="Download" src="https://api.bintray.com/packages/http4k/maven/http4k-core/images/download.svg"></a>
-<a href="http://kotlinlang.org"><img alt="kotlin" src="https://img.shields.io/badge/kotlin-1.1.2-blue.svg"></a>
+<a href="http://kotlinlang.org"><img alt="kotlin" src="https://img.shields.io/badge/kotlin-1.1.4-blue.svg"></a>
 <a href="https://codebeat.co/projects/github-com-http4k-http4k-master"><img alt="codebeat badge" src="https://codebeat.co/badges/5b369ed4-af27-46f4-ad9c-a307d900617e"></a>
 <a href="https://kotlin.link"><img alt="Awesome Kotlin Badge" src="https://kotlin.link/awesome-kotlin.svg"></a>
 <a href="https://gitter.im/http4k/http4k"><img alt="Gitter" src="https://img.shields.io/badge/gitter-join%20chat-1dce73.svg"></a>
@@ -26,18 +26,20 @@ of 2 types of simple function:
 * **Immutablility:** All entities in the library are immutable unless their function explicitly disallows this.
 * **Symmetric:** The `HttpHandler` interface is identical for both HTTP services and clients. This allows for simple offline testability of applications, as well as 
 plugging together of services without HTTP container being required.
-* **Dependency-lite:** The `http4k-core` module has ZERO dependencies. Add-on modules only have dependencies required for specific implementation.
+* **Dependency-lite:** Apart the from Kotlin StdLib, `http4k-core` module has ZERO dependencies and weighs in at ~500kb. Add-on modules only have dependencies required for specific implementation.
 * **Testability** Built by **TDD** enthusiasts, so supports **super-easy** mechanisms for both In and Out of Container testing of:
     * individual endpoints
     * applications
     * full suites of microservices
 * **Modularity:** Common behaviours are abstracted into the `http4k-core` module. Current add-ons cover:
     * Pluggable HTTP client adapters for Apache and OkHttp
-    * Pluggable Server backends: Single LOC Server spinup for Jetty, Netty and Undertow
+    * Pluggable Server backends: Single LOC Server spinup for Jetty, Netty, Undertow and SunHttp
     * Typesafe, auto-validating, self-documenting (via Swagger) contracts for HTTP services
-    * HTTP message adapters for Argo JSON, Gson JSON and Jackson JSON (includes auto-marshalling)
+    * HTTP message adapters for Argo JSON, Gson JSON, Jackson JSON and XML - includes auto-marshalling capabilities to convert directly to Kotlin data classes.
     * Templating support: Caching and Hot-Reload engine support for Handlebars
-    * AWS request signing: super-simple interactions with AWS services.
+    * AWS request signing: super-simple interactions with AWS services
+    * Testing: Selenium WebDriver implementation for lightning fast, browserless testing of **http4k** apps
+    * Testing: Hamkrest Matchers for **http4k** objects
 
 ## Module feature overview
 * [Core:](https://http4k.org/guide/modules/core) 
@@ -46,7 +48,8 @@ plugging together of services without HTTP container being required.
     * **Path-based routing**, including nestable contexts
     * **Typesafe HTTP message construction/desconstruction** using Lenses
     * **Static file-serving** capability with **Caching and Hot-Reload** 
-    * Servlet implementation to allow **zero-dependency plugin to any Servlet container**
+    * Servlet implementation to allow **
+    -dependency plugin to any Servlet container**
     * Launch applications in **1LOC** with an embedded **SunHttp** server backend (recommended for development use only)
     * Core abstraction APIs implemented by the other modules 
 * [Client:](https://http4k.org/guide/modules/clients) 
@@ -58,12 +61,13 @@ plugging together of services without HTTP container being required.
         * **Jetty**
         * **Netty**
         * **Undertow**
+        * **SunHttp** (bundled with `http4k-core`)
     * API design allows for plugging into configurable instances of each
 * [Contracts:](https://http4k.org/guide/modules/contracts) 
-   * Definite **Typesafe** HTTP contracts, defining required and optional path/query/header/bodies
-   * **Typesafe** path matching
-   * **Auto-validation** of incoming requests == **zero boilerplate validation code**
-   * Self-documenting for all routes - eg. Built in support for live **Swagger** description endpoints including **JSON Schema** model breakdown. 
+    * Definite **Typesafe** HTTP contracts, defining required and optional path/query/header/bodies
+    * **Typesafe** path matching
+    * **Auto-validation** of incoming requests == **zero boilerplate validation code**
+    * Self-documenting for all routes - eg. Built in support for live **Swagger** description endpoints including **JSON Schema** model breakdown. 
 * [Templating:](https://http4k.org/guide/modules/templating) 
     * **Pluggable** templating system support for:
         * **Handlebars** 
@@ -74,19 +78,24 @@ plugging together of services without HTTP container being required.
     * Consistent API provides first class support for marshalling JSON to/from HTTP messages for:
         * **Jackson** - includes support for **fully [automatic marshalling](https://http4k.org/guide/modules/message_formats/#auto-marshalling-capabilities) of Data classes**)
         * **Gson** - includes support for **fully [automatic marshalling](https://http4k.org/guide/modules/message_formats/#auto-marshalling-capabilities) of Data classes**)
-        * **Argo**
+        * **Argo** - lightweight Java JSON API with zero dependencies.
+        * **Xml** - includes support for **one way [automatic marshalling](https://http4k.org/guide/modules/message_formats/#auto-marshalling-capabilities) of Data classes**)
 * [AWS:](https://http4k.org/guide/modules/aws) 
     * Client filter to allow super-simple interaction with AWS services (via request signing)
-
+* [WebDriver:](https://http4k.org/guide/modules/webdriver) 
+    * Ultra-lightweight Selenium WebDriver implementation for **http4k** application.
+* [Hamkrest:](https://http4k.org/guide/modules/hamkrest) 
+    * A set of Hamkrest matchers for testing **http4k** Request and Response messages.
+    
 ## Example
 This quick example is designed to convey the simplicity & features of **http4k**. See also the [quickstart](https://http4k.org/quickstart/) for the simplest possible starting point.
 
 To install, add these dependencies to your **Gradle** file:
 ```groovy
 dependencies {
-    compile group: "org.http4k", name: "http4k-core", version: "2.11.3"
-    compile group: "org.http4k", name: "http4k-server-jetty", version: "2.11.3"
-    compile group: "org.http4k", name: "http4k-client-okhttp", version: "2.11.3"
+    compile group: "org.http4k", name: "http4k-core", version: "2.23.4"
+    compile group: "org.http4k", name: "http4k-server-jetty", version: "2.23.4"
+    compile group: "org.http4k", name: "http4k-client-okhttp", version: "2.23.4"
 }
 ```
 
@@ -113,8 +122,8 @@ fun main(args: Array<String>) {
     // we can bind HttpHandlers (which are just functions from  Request -> Response) to paths/methods to create a Route,
     // then combine many Routes together to make another HttpHandler
     val app: HttpHandler = routes(
-        "/ping" to GET bind { _: Request -> Response(OK).body("pong!") },
-        "/greet/{name}" to GET bind { req: Request ->
+        "/ping" bind GET to { _: Request -> Response(OK).body("pong!") },
+        "/greet/{name}" bind GET to { req: Request ->
             val path: String? = req.path("name")
             Response(OK).body("hello ${path ?: "anon!"}")
         }
@@ -161,9 +170,9 @@ fun main(args: Array<String>) {
 //    HTTP/1.1 200
 //    cache-control: private, must-revalidate
 //    content-length: 9
-//    date: Thu, 08 Jun 2017 13:01:13 GMT
+//    date: Thu, 08 Jun 2.23.43:01:13 GMT
 //    expires: 0
-//    server: Jetty(9.3.16.v20170120)
+//    server: Jetty(9.3.16.v2.23.420)
 //
 //    hello Bob
 }

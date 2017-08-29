@@ -1,15 +1,16 @@
 ### Installation (Gradle)
-```compile group: "org.http4k", name: "http4k-core", version: "2.11.3"```
+```compile group: "org.http4k", name: "http4k-core", version: "2.23.4"```
 
 ### About
-The core module has ZERO dependencies and provides the following:
+Apart from Kotlin StdLib, the core module has ZERO dependencies and provides the following:
 
 - Immutable versions of the HTTP spec objects (Request, Response, Cookies etc).
 - HTTP handler and filter abstractions which models services as simple, composable functions.
 - Simple routing implementation, plus `HttpHandlerServlet` to enable plugging into any Servlet engine. 
 - [Lens](https://www21.in.tum.de/teaching/fp/SS15/papers/17.pdf) mechanism for typesafe destructuring and construction of HTTP messages.
 - Abstractions for Servers, Clients, JSON Message formats, Templating etc.
-- `SunHttp` Single-LOC development Server-backend 
+- `SunHttp` Single-LOC development Server-backend
+- Static file-serving capability with **Caching** and **Hot-Reload**
 
 #### HttpHandlers 
 In **http4k**, an HTTP service is just a typealias of a simple function:
@@ -67,20 +68,22 @@ The `http4k-core` module comes with a set of handy Filters for application to bo
 
 Check out the `org.http4k.filter` package for the exact list.
 
-### Simple Routing
-Basic routing for mapping a URL pattern to an `HttpHandler`:
+### Routers - Nestable, path-based Routing
+Create a Router using routes() to bind a static or dynamic path to either an HttpHandler, or to another sub-Router. These Routers can be nested infinitely deep and **http4k** will search for a matching route using a depth-first search algorithm, before falling back finally to a 404:
 ```kotlin
 routes(
-    "/hello/{name:*}" to GET bind { request: Request -> Response(OK).body("Hello, ${request.path("name")}!") },
-    "/fail" to POST bind { request: Request -> Response(INTERNAL_SERVER_ERROR) }
+    "/hello" bind routes(
+        "/{name:*}" bind GET to { request: Request -> Response(OK).body("Hello, ${request.path("name")}!") }
+    ),
+    "/fail" bind POST to { request: Request -> Response(INTERNAL_SERVER_ERROR) }
 ).asServer(Jetty(8000)).start()
 ```
 
-Note that the `http4k-contract` module contains a more typesafe implementation of routing functionality.
+Note that the `http4k-contract` module contains a more typesafe implementation of routing functionality, with runtime-generated live documentation in Swagger format.
 
 ### Typesafe parameter destructuring/construction of HTTP messages with Lenses
 Getting values from HTTP messages is one thing, but we want to ensure that those values are both present and valid. 
-For this purpose, we can use a [Lens](https://www21.in.tum.de/teaching/fp/SS15/papers/17.pdf). 
+For this purpose, we can use a [Lens](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/basic-lensing). 
 
 A Lens is a bi-directional entity which can be used to either **get** or **set** a particular value from/onto an HTTP message. **http4k** provides a DSL 
 to configure these lenses to target particular parts of the message, whilst at the same time specifying the requirement for those parts (i.e. mandatory or optional). 
@@ -100,7 +103,7 @@ There is one "location" type for each part of the message, each with config/mapp
 Once the lens is declared, you can use it on a target object to either get or set the value:
 
 - Retrieving a value: use `<lens>.extract(<target>)`, or the more concise invoke form: `<lens>(<target>)`
-- Setting a value: use `<lens>.inject(<target>)`, or the more concise invoke form: `<lens>(<value>, <target>)`
+- Setting a value: use `<lens>.inject(<value>, <target>)`, or the more concise invoke form: `<lens>(<value>, <target>)`
 
 ```kotlin
 val pathLocalDate = Path.localDate().of("date")
@@ -115,7 +118,7 @@ val requiredCustomQuery = Query.map(::CustomType, { it.value }).required("myCust
 
 //To use the Lens, simply `invoke() or extract()` it using an HTTP message to extract the value, or alternatively `invoke() or inject()` it with the value if we are modifying (via copy) the message:
 val handler = routes(
-    "/hello/{date:*}" to GET bind { request: Request -> 
+    "/hello/{date:*}" bind GET to { request: Request -> 
          val pathDate: LocalDate = pathLocalDate(request) 
          // SAME AS: 
          // val pathDate: LocalDate = pathLocalDate.extract(request)
@@ -144,9 +147,20 @@ val modifiedRequest: Request = Request(Method.GET, "http://google.com/{pathLocal
     optionalHeader of 123
 )
 ```
+### Serving static assets
+For serving static assets, just bind a path to a Static block as below, using either a Classpath or HotReload based ResourceLoader instance. Typically, HotReload is used during development and the Classpath strategy is used to serve assets in production from an UberJar. This is usually based on a "devmode" flag when constructing your app":
+```kotlin
+routes(
+    "/static" bind static(Classpath("org.http4k.some.package.name"))
+    "/hotreload" bind static(HotReload("path/to/static/dir/goes/here"))
+)
+```
 
-### Other features
-Creates `curl` command for a given request:
+### Request and Response toString()
+The HttpMessages used by **http4k** toString in the HTTP wire format, which it simple to capture and replay HTTP message streams later in a similar way to tools like [Mountebank](http://www.mbtest.org/).
+
+### CURL format
+Creates `curl` command for a given request - this is useful to include in audit logs so exact requests can be replayed if required:
 
 ```kotlin
 val curl = Request(POST, "http://httpbin.org/post").body(listOf("foo" to "bar").toBody()).toCurl()

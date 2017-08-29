@@ -2,6 +2,7 @@ package org.http4k.server
 
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
+import org.http4k.core.Body
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Method.GET
@@ -13,13 +14,18 @@ import org.http4k.core.Status.Companion.INTERNAL_SERVER_ERROR
 import org.http4k.core.Status.Companion.OK
 import org.http4k.routing.bind
 import org.http4k.routing.routes
+import org.http4k.util.RetryRule
 import org.junit.After
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import java.util.*
 
 abstract class ServerContract(private val serverConfig: (Int) -> ServerConfig, private val client: HttpHandler) {
     private var server: Http4kServer? = null
+
+    @Rule
+    @JvmField var retryRule = RetryRule(5)
 
     private val port = Random().nextInt(1000) + 8000
 
@@ -28,18 +34,16 @@ abstract class ServerContract(private val serverConfig: (Int) -> ServerConfig, p
 
         val routes =
             Method.values().map {
-                "/" + it.name to it bind { _: Request ->
-                    Response(OK).body(it.name)
-                }
+                "/" + it.name bind it to { _: Request -> Response(OK).body(it.name) }
             }.plus(listOf(
-                "/headers" to GET bind { _: Request ->
+                "/headers" bind GET to { _: Request ->
                     Response(ACCEPTED)
                         .header("content-type", "text/plain")
                 },
-                "/echo" to POST bind { req: Request -> Response(OK).body(req.bodyString()) },
-                "/request-headers" to GET bind { request: Request -> Response(OK).body(request.headerValues("foo").joinToString(", ")) },
-                "/uri" to GET bind { req: Request -> Response(OK).body(req.uri.toString()) },
-                "/boom" to GET bind { _: Request -> throw IllegalArgumentException("BOOM!") }
+                "/echo" bind POST to { req: Request -> Response(OK).body(req.bodyString()) },
+                "/request-headers" bind GET to { request: Request -> Response(OK).body(request.headerValues("foo").joinToString(", ")) },
+                "/uri" bind GET to { req: Request -> Response(OK).body(req.uri.toString()) },
+                "/boom" bind GET to { _: Request -> throw IllegalArgumentException("BOOM!") }
             ))
 
         server = routes(*routes.toTypedArray()).asServer(serverConfig(port)).start()
@@ -52,7 +56,8 @@ abstract class ServerContract(private val serverConfig: (Int) -> ServerConfig, p
             val response = client(Request(method, "http://localhost:$port/" + method.name))
 
             assertThat(response.status, equalTo(OK))
-            assertThat(response.bodyString(), equalTo(method.name))
+            if (method == Method.HEAD) assertThat(response.body, equalTo(Body.EMPTY))
+            else assertThat(response.bodyString(), equalTo(method.name))
         }
     }
 

@@ -12,6 +12,7 @@ import org.http4k.core.Status
 import org.http4k.core.Status.Companion.INTERNAL_SERVER_ERROR
 import org.http4k.core.Status.Companion.OK
 import org.http4k.core.Status.Companion.UNAUTHORIZED
+import org.http4k.core.then
 import org.http4k.core.with
 import org.http4k.lens.Header
 import org.http4k.lens.LensFailure
@@ -32,8 +33,7 @@ object ServerFilters {
     object Cors {
         private fun List<String>.joined() = this.joinToString(", ")
 
-        operator fun invoke(policy: CorsPolicy) = Filter {
-            next ->
+        operator fun invoke(policy: CorsPolicy) = Filter { next ->
             {
                 val response = if (it.method == OPTIONS) Response(OK) else next(it)
                 response.with(
@@ -45,11 +45,13 @@ object ServerFilters {
         }
     }
 
+    /**
+     * Adds Zipkin request tracing headers to the incoming request and outbound response. (traceid, spanid, parentspanid)
+     */
     object RequestTracing {
         operator fun invoke(
             startReportFn: (Request, ZipkinTraces) -> Unit = { _, _ -> },
-            endReportFn: (Request, Response, ZipkinTraces) -> Unit = { _, _, _ -> }): Filter = Filter {
-            next ->
+            endReportFn: (Request, Response, ZipkinTraces) -> Unit = { _, _, _ -> }): Filter = Filter { next ->
             {
                 val fromRequest = ZipkinTraces(it)
                 startReportFn(it, fromRequest)
@@ -67,9 +69,11 @@ object ServerFilters {
         }
     }
 
+    /**
+     * Simple Basic Auth credential checking.
+     */
     object BasicAuth {
-        operator fun invoke(realm: String, authorize: (Credentials) -> Boolean): Filter = Filter {
-            next ->
+        operator fun invoke(realm: String, authorize: (Credentials) -> Boolean): Filter = Filter { next ->
             {
                 val credentials = it.basicAuthenticationCredentials()
                 if (credentials == null || !authorize(credentials)) {
@@ -87,6 +91,10 @@ object ServerFilters {
         private fun String.toCredentials(): Credentials? = base64Decoded().split(":").let { Credentials(it.getOrElse(0, { "" }), it.getOrElse(1, { "" })) }
     }
 
+    /**
+     * Converts Lens extraction failures into Http 400 (Bad Requests). This is required when using lenses to
+     * automatically respond to bad requests.
+     */
     object CatchLensFailure : Filter {
         override fun invoke(next: HttpHandler): HttpHandler = {
             try {
@@ -97,9 +105,11 @@ object ServerFilters {
         }
     }
 
+    /**
+     * Last gasp filter which catches all exceptions and returns a formatted Internal Server Error.
+     */
     object CatchAll {
-        operator fun invoke(errorStatus: Status = INTERNAL_SERVER_ERROR): Filter = Filter {
-            next ->
+        operator fun invoke(errorStatus: Status = INTERNAL_SERVER_ERROR): Filter = Filter { next ->
             {
                 try {
                     next(it)
@@ -113,15 +123,24 @@ object ServerFilters {
 
     }
 
+    /**
+     * Copy headers from the incoming request to the outbound response.
+     */
     object CopyHeaders {
-        operator fun invoke(vararg headers: String): Filter = Filter {
-            next ->
-            {
-                request ->
-                val response = next(request)
-                headers.fold(response,
+        operator fun invoke(vararg headers: String): Filter = Filter { next ->
+            { request ->
+                headers.fold(next(request),
                     { memo, name -> request.header(name)?.let { memo.header(name, it) } ?: memo })
             }
         }
+    }
+
+    /**
+     * Basic GZip and Gunzip support of Request/Response. Does not currently support GZipping streams.
+     * Only Gunzips requests which contain "transfer-encoding" header containing 'gzip'
+     * Only Gzips responses when request contains "accept-encoding" header containing 'gzip'.
+     */
+    object GZip {
+        operator fun invoke(): Filter = RequestFilters.GunZip().then(ResponseFilters.GZip())
     }
 }

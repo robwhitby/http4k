@@ -1,12 +1,13 @@
 ### Installation (Gradle)
-**Handlebars:** ```compile group: "org.http4k", name: "http4k-template-handlebars", version: "2.11.3"```
+**Handlebars:** ```compile group: "org.http4k", name: "http4k-template-handlebars", version: "2.23.4"```
 
-**Pebble:** ```compile group: "org.http4k", name: "http4k-template-pebble", version: "2.11.3"```
+**Pebble:** ```compile group: "org.http4k", name: "http4k-template-pebble", version: "2.23.4"```
 
-**Thymeleaf:** ```compile group: "org.http4k", name: "http4k-template-thymeleaf", version: "2.11.3"```
+**Thymeleaf:** ```compile group: "org.http4k", name: "http4k-template-thymeleaf", version: "2.23.4"```
 
 ### About
-The pluggable **http4k** templating API adds `ViewModel` rendering for common templating libraries. The implementations provide the a number of renderers for views:
+The **http4k** templating API provides a standard mechanism for rendering using common templating libraries. Simply implement the `ViewModel` interface on a model class and pass it to the renderer to get a string. All of the implementations support view rendering using the following strategies:
+
 * Cached on the classpath
 * Cached from the filesystem
 * Hot-Reloading from the filesystem

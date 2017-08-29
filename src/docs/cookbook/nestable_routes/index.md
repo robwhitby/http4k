@@ -10,9 +10,9 @@ This is a fairly comprehensive example of the core-routing logic available:
 
 ### Gradle setup
 ```
-    compile group: "org.http4k", name: "http4k-core", version: "2.11.3"
+    compile group: "org.http4k", name: "http4k-core", version: "2.23.4"
 ```
 
 ### Code
 
-<script src="http://gist-it.appspot.com/https://github.com/http4k/http4k/blob/master/src/docs/cookbook/nestable_routes/example.kt"></script>
+<script src="https://gist-it.appspot.com/https://github.com/http4k/http4k/blob/master/src/docs/cookbook/nestable_routes/example.kt"></script>

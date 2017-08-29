@@ -32,15 +32,13 @@ class UriTemplateTest {
     }
 
     @Test
-    fun canCaptureEnd() {
+    fun doesNotCaptureEnd() {
         val template1 = from("path")
-        assertThat(template1.matches("path/123"), equalTo(true))
-        assertThat(template1.extract("path/123").getValue("$"), equalTo("/123"))
+        assertThat(template1.matches("path/123"), equalTo(false))
         val template = from("path/{id}")
-        assertThat(template.matches("path/123/someotherpath"), equalTo(true))
-        assertThat(template.extract("path/123/someotherpath").getValue("$"), equalTo("/someotherpath"))
+        assertThat(template.matches("path/123/someotherpath"), equalTo(false))
         assertThat(template.matches("path/123"), equalTo(true))
-        assertThat(template.generate(pathParameters(pair("id", "123"), pair("$", "/someotherpath"))), equalTo("path/123/someotherpath"))
+        assertThat(template.generate(pathParameters(pair("id", "123"))), equalTo("path/123"))
     }
 
     @Test
@@ -64,6 +62,12 @@ class UriTemplateTest {
     fun canExtractFromUri() {
         val template = from("path/{id}")
         assertThat(template.extract("path/foo").getValue("id"), equalTo("foo"))
+    }
+
+    @Test
+    fun fallbackDoesNotWork() {
+        val template = from("/b/c")
+        assertThat(template.matches("/b/c/e/f"), equalTo(false))
     }
 
     @Test
@@ -97,8 +101,15 @@ class UriTemplateTest {
         assertThat(template.generate(pathParameters(pair("id", "foo"))), equalTo("path/foo"))
     }
 
-    fun pathParameters(vararg pairs: Pair<String, String>): Map<String, String> = mapOf(*pairs)
+    @Test
+    fun doesNotDecodeSlashesWhenCapturing() {
+        val extracted = from("path/{first}/{second}").extract("path/1%2F2/3")
+        assertThat(extracted.getValue("first"), equalTo("1/2"))
+        assertThat(extracted.getValue("second"), equalTo("3"))
+    }
 
-    fun pair(v1: String, v2: String) = v1 to v2
+    private fun pathParameters(vararg pairs: Pair<String, String>): Map<String, String> = mapOf(*pairs)
+
+    private fun pair(v1: String, v2: String) = v1 to v2
 }
 

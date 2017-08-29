@@ -1,4 +1,4 @@
-#!/bin/bash
+    #!/bin/bash
 
 set -e
 set -o errexit
@@ -18,7 +18,7 @@ fi
 
 echo "Attempting to release $LOCAL_VERSION (old version $BINTRAY_VERSION)"
 
-./gradlew -PreleaseVersion=$LOCAL_VERSION clean build \
+./gradlew -PreleaseVersion=$LOCAL_VERSION clean assemble \
     :http4k-aws:bintrayUpload \
     :http4k-core:bintrayUpload \
     :http4k-contract:bintrayUpload \
@@ -30,9 +30,12 @@ echo "Attempting to release $LOCAL_VERSION (old version $BINTRAY_VERSION)"
     :http4k-format-argo:bintrayUpload \
     :http4k-format-gson:bintrayUpload \
     :http4k-format-jackson:bintrayUpload \
+    :http4k-format-xml:bintrayUpload \
     :http4k-server-jetty:bintrayUpload \
     :http4k-server-netty:bintrayUpload \
-    :http4k-server-undertow:bintrayUpload
+    :http4k-server-undertow:bintrayUpload \
+    :http4k-testing-hamkrest:bintrayUpload \
+    :http4k-testing-webdriver:bintrayUpload
 
 function notify_slack {
     local MESSAGE=$1
@@ -46,11 +49,9 @@ function notify_gitter {
     curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $GITTER_BEARER_TOKEN" "$GITTER_WEBHOOK"  -d "{'text':'$MESSAGE'}"
 }
 
-./release-maven-central.sh
-
 if [ $? -ne 0 ]; then
     notify_slack "Release has failed. Check <https://travis-ci.org/http4k/http4k-core/builds/$TRAVIS_BUILD_ID|Build #$TRAVIS_BUILD_NUMBER> for details."
 else
-    notify_slack "Released version <https://bintray.com/http4k/maven/http4k-core/$LOCAL_VERSION|$LOCAL_VERSION>."
-    notify_gitter "Released version <https://bintray.com/http4k/maven/http4k-core/$LOCAL_VERSION|$LOCAL_VERSION>."
+    notify_slack "Released version <https://bintray.com/http4k/maven/http4k-core/$LOCAL_VERSION|$LOCAL_VERSION> (See <https://github.com/http4k/http4k/blob/master/CHANGELOG.md#changelog|Changelog> for details)."
+    notify_gitter "Released version <https://bintray.com/http4k/maven/http4k-core/$LOCAL_VERSION|$LOCAL_VERSION> (See <https://github.com/http4k/http4k/blob/master/CHANGELOG.md#changelog|Changelog> for details)."
 fi

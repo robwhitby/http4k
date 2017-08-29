@@ -1,7 +1,6 @@
 package org.http4k.contract
 
 
-import org.http4k.contract.ContractRoutingHttpHandler.Companion.Handler
 import org.http4k.core.Filter
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
@@ -16,7 +15,7 @@ fun contract(vararg serverRoutes: ContractRoute) = contract(NoRenderer, "", NoSe
 fun contract(renderer: ContractRenderer, vararg serverRoutes: ContractRoute) = contract(renderer, "", NoSecurity, *serverRoutes)
 fun contract(renderer: ContractRenderer, descriptionPath: String, vararg serverRoutes: ContractRoute) = contract(renderer, descriptionPath, NoSecurity, *serverRoutes)
 fun contract(renderer: ContractRenderer = NoRenderer, descriptionPath: String = "", security: Security = NoSecurity, vararg serverRoutes: ContractRoute) =
-    ContractRoutingHttpHandler(Handler(renderer, security, descriptionPath, "", serverRoutes.map { it }, Filter { { req -> it(req) } }))
+    ContractRoutingHttpHandler(renderer, security, descriptionPath, "", serverRoutes.map { it }, Filter { { req -> it(req) } })
 
 operator fun <A> String.div(next: PathLens<A>): ContractRouteSpec1<A> = ContractRouteSpec0(toBaseFn(this), emptyList(), null) / next
 
@@ -24,32 +23,60 @@ operator fun <A, B> PathLens<A>.div(next: PathLens<B>): ContractRouteSpec2<A, B>
 
 infix fun String.bind(router: ContractRoutingHttpHandler): ContractRoutingHttpHandler = router.withBasePath(this)
 
-@JvmName("newRequestString")
-fun Pair<String, Method>.newRequest(baseUri: Uri = Uri.of("")) = Request(second, "").uri(baseUri.path(first))
+interface RouteBinder<in T> {
+    fun newRequest(baseUri: Uri = Uri.of("")): Request
+    infix fun to(fn: T): ContractRoute
+}
 
-@JvmName("newRequestRouteSpec")
-fun Pair<ContractRouteSpec, Method>.newRequest(baseUri: Uri = Uri.of("")) = Request(second, "").uri(baseUri.path(first.describe(Root)))
+infix fun <A> PathLens<A>.bindContract(method: Method) = ContractRouteSpec1({ it }, emptyList(), null, this).bindContract(method)
 
+
+infix fun String.bindContract(method: Method): RouteBinder<HttpHandler> = ContractRouteSpec0(toBaseFn(this), emptyList(), null).bindContract(method)
+
+infix fun ContractRouteSpec0.bindContract(method: Method) = let { spec ->
+    object : RouteBinder<HttpHandler> {
+        override fun newRequest(baseUri: Uri) = Request(method, "").uri(baseUri.path(spec.describe(Root)))
+
+        override fun to(fn: HttpHandler): ContractRoute = ContractRoute(method, spec, { fn })
+    }
+}
+
+infix fun <A> ContractRouteSpec1<A>.bindContract(method: Method) = let { spec ->
+    object : RouteBinder<(A) -> HttpHandler> {
+        override fun newRequest(baseUri: Uri) = Request(method, "").uri(baseUri.path(spec.describe(Root)))
+
+        override fun to(fn: (A) -> HttpHandler): ContractRoute = ContractRoute(method, spec, { fn(it[spec.a]) })
+    }
+}
+
+infix fun <A, B> ContractRouteSpec2<A, B>.bindContract(method: Method) = let { spec ->
+    object : RouteBinder<(A, B) -> HttpHandler> {
+        override fun newRequest(baseUri: Uri) = Request(method, "").uri(baseUri.path(spec.describe(Root)))
+        override fun to(fn: (A, B) -> HttpHandler): ContractRoute = ContractRoute(method, spec, { fn(it[spec.a], it[spec.b]) })
+    }
+}
+
+infix fun <A, B, C> ContractRouteSpec3<A, B, C>.bindContract(method: Method) = let { spec ->
+    object : RouteBinder<(A, B, C) -> HttpHandler> {
+        override fun newRequest(baseUri: Uri) = Request(method, "").uri(baseUri.path(spec.describe(Root)))
+        override fun to(fn: (A, B, C) -> HttpHandler): ContractRoute = ContractRoute(method, spec, { fn(it[spec.a], it[spec.b], it[spec.c]) })
+    }
+}
+
+infix fun <A, B, C, D> ContractRouteSpec4<A, B, C, D>.bindContract(method: Method) = let { spec ->
+    object : RouteBinder<(A, B, C, D) -> HttpHandler> {
+        override fun newRequest(baseUri: Uri): Request = Request(method, "").uri(baseUri.path(spec.describe(Root)))
+        override fun to(fn: (A, B, C, D) -> HttpHandler): ContractRoute = ContractRoute(method, spec, { fn(it[spec.a], it[spec.b], it[spec.c], it[spec.d]) })
+    }
+}
+
+// TODO deprecate or remove??
 @JvmName("handler0String")
-infix fun Pair<String, Method>.bind(handler: HttpHandler) = ContractRoute(second, ContractRouteSpec0(toBaseFn(first), emptyList(), null), { handler })
+infix fun Pair<String, Method>.bind(handler: HttpHandler) = ContractRouteSpec0(toBaseFn(first), emptyList(), null).bindContract(second) to handler
 
+// TODO deprecate or remove??
 @JvmName("handler1Path")
-infix fun <A> Pair<PathLens<A>, Method>.bind(fn: (A) -> HttpHandler) = ContractRouteSpec1({ it }, emptyList(), null, first) to second bind fn
-
-@JvmName("handler0")
-infix fun Pair<ContractRouteSpec0, Method>.bind(handler: HttpHandler) = ContractRoute(second, first, { handler })
-
-@JvmName("handler1")
-infix fun <A> Pair<ContractRouteSpec1<A>, Method>.bind(fn: (A) -> HttpHandler) = ContractRoute(second, first, { fn(it[first.a]) })
-
-@JvmName("handler2")
-infix fun <A, B> Pair<ContractRouteSpec2<A, B>, Method>.bind(fn: (A, B) -> HttpHandler) = ContractRoute(second, first, { fn(it[first.a], it[first.b]) })
-
-@JvmName("handler3")
-infix fun <A, B, C> Pair<ContractRouteSpec3<A, B, C>, Method>.bind(fn: (A, B, C) -> HttpHandler) = ContractRoute(second, first, { fn(it[first.a], it[first.b], it[first.c]) })
-
-@JvmName("handler4")
-infix fun <A, B, C, D> Pair<ContractRouteSpec4<A, B, C, D>, Method>.bind(fn: (A, B, C, D) -> HttpHandler) = ContractRoute(second, first, { fn(it[first.a], it[first.b], it[first.c], it[first.d]) })
+infix fun <A> Pair<PathLens<A>, Method>.bind(fn: (A) -> HttpHandler) = ContractRouteSpec1({ it }, emptyList(), null, first).bindContract(second) to fn
 
 infix fun String.query(new: QueryLens<*>) = ContractRouteSpec0(toBaseFn(this), listOf(new), null)
 infix fun String.header(new: HeaderLens<*>) = ContractRouteSpec0(toBaseFn(this), listOf(new), null)

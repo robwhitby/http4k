@@ -2,9 +2,9 @@ Example of how to use the JSON library API wrappers, in this case the module use
 
 ### Gradle setup
 ```
-    compile group: "org.http4k", name: "http4k-core", version: "2.11.3"
-    compile group: "org.http4k", name: "http4k-format-jackson", version: "2.11.3"
+    compile group: "org.http4k", name: "http4k-core", version: "2.23.4"
+    compile group: "org.http4k", name: "http4k-format-jackson", version: "2.23.4"
 ```
 
 ### Code
-<script src="http://gist-it.appspot.com/https://github.com/http4k/http4k/blob/master/src/docs/cookbook/using_json/example.kt"></script>
+<script src="https://gist-it.appspot.com/https://github.com/http4k/http4k/blob/master/src/docs/cookbook/using_json/example.kt"></script>

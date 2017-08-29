@@ -1,5 +1,6 @@
 package org.http4k.filter
 
+import com.natpryce.hamkrest.and
 import com.natpryce.hamkrest.assertion.assertThat
 import com.natpryce.hamkrest.equalTo
 import com.natpryce.hamkrest.present
@@ -15,7 +16,11 @@ import org.http4k.core.Status.Companion.INTERNAL_SERVER_ERROR
 import org.http4k.core.Status.Companion.I_M_A_TEAPOT
 import org.http4k.core.Status.Companion.OK
 import org.http4k.core.then
+import org.http4k.core.toBody
 import org.http4k.filter.CorsPolicy.Companion.UnsafeGlobalPermissive
+import org.http4k.hamkrest.hasBody
+import org.http4k.hamkrest.hasHeader
+import org.http4k.hamkrest.hasStatus
 import org.junit.Before
 import org.junit.Test
 import java.io.PrintWriter
@@ -72,34 +77,37 @@ class ServerFiltersTest {
 
         val originalRequest = ZipkinTraces(originalTraces, Request(GET, ""))
         val actual = svc(originalRequest)
-        assertThat(ZipkinTraces(actual), equalTo(originalTraces))
+        ZipkinTraces(actual) shouldMatch equalTo(originalTraces)
 
-        assertThat(start!!.first, equalTo(originalRequest))
-        assertThat(start!!.second, equalTo(originalTraces))
+        start!!.first shouldMatch equalTo(originalRequest)
+        start!!.second shouldMatch equalTo(originalTraces)
 
-        assertThat(end!!.first, equalTo(originalRequest))
-        assertThat(end!!.second, equalTo(ZipkinTraces(originalTraces, Response(OK))))
-        assertThat(end!!.third, equalTo(originalTraces))
+
+        end!!.first shouldMatch equalTo(originalRequest)
+        end!!.second shouldMatch equalTo(ZipkinTraces(originalTraces, Response(OK)))
+        end!!.third shouldMatch equalTo(originalTraces)
     }
 
     @Test
     fun `GET - Cors headers are set correctly`() {
-        val handler = ServerFilters.Cors(UnsafeGlobalPermissive).then { Response(I_M_A_TEAPOT)}
+        val handler = ServerFilters.Cors(UnsafeGlobalPermissive).then { Response(I_M_A_TEAPOT) }
         val response = handler(Request(GET, "/"))
-        assertThat(response.status, equalTo(I_M_A_TEAPOT))
-        assertThat(response.header("access-control-allow-origin"), equalTo("*"))
-        assertThat(response.header("access-control-allow-headers"), equalTo("content-type"))
-        assertThat(response.header("access-control-allow-methods"), equalTo("GET, POST, PUT, DELETE, OPTIONS, TRACE, PATCH, PURGE"))
+
+        response shouldMatch hasStatus(I_M_A_TEAPOT)
+            .and(hasHeader("access-control-allow-origin", "*"))
+            .and(hasHeader("access-control-allow-headers", "content-type"))
+            .and(hasHeader("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS, TRACE, PATCH, PURGE, HEAD"))
     }
 
     @Test
     fun `OPTIONS - requests are intercepted and returned with expected headers`() {
-        val handler = ServerFilters.Cors(CorsPolicy(listOf("foo", "bar"), listOf("rita", "sue", "bob"), listOf(DELETE, POST))).then { Response(INTERNAL_SERVER_ERROR)}
+        val handler = ServerFilters.Cors(CorsPolicy(listOf("foo", "bar"), listOf("rita", "sue", "bob"), listOf(DELETE, POST))).then { Response(INTERNAL_SERVER_ERROR) }
         val response = handler(Request(OPTIONS, "/"))
-        assertThat(response.status, equalTo(OK))
-        assertThat(response.header("access-control-allow-origin"), equalTo("foo, bar"))
-        assertThat(response.header("access-control-allow-headers"), equalTo("rita, sue, bob"))
-        assertThat(response.header("access-control-allow-methods"), equalTo("DELETE, POST"))
+
+        response shouldMatch hasStatus(OK)
+            .and(hasHeader("access-control-allow-origin", "foo, bar"))
+            .and(hasHeader("access-control-allow-headers", "rita, sue, bob"))
+            .and(hasHeader("access-control-allow-methods", "DELETE, POST"))
     }
 
     @Test
@@ -112,8 +120,7 @@ class ServerFiltersTest {
         val sw = StringWriter()
         e.printStackTrace(PrintWriter(sw))
 
-        assertThat(response.status, equalTo(I_M_A_TEAPOT))
-        assertThat(response.bodyString(), equalTo(sw.toString()))
+        response shouldMatch hasStatus(I_M_A_TEAPOT).and(hasBody(sw.toString()))
     }
 
     @Test
@@ -122,16 +129,37 @@ class ServerFiltersTest {
 
         val response = handler(Request(GET, "/").header("foo", "one").header("bar", "two"))
 
-        assertThat(response.header("foo"), equalTo("one"))
-        assertThat(response.header("bar"), equalTo("two"))
+        response shouldMatch hasHeader("foo", "one")
+        response shouldMatch hasHeader("bar", "two")
     }
 
     @Test
-    fun `copy only headers specified in filter`(){
+    fun `copy only headers specified in filter`() {
         val handler = ServerFilters.CopyHeaders("a", "b").then { Response(OK) }
 
         val response = handler(Request(GET, "/").header("b", "2").header("c", "3"))
 
         assertThat(response.headers, equalTo(listOf("b" to "2") as Headers))
+    }
+
+    @Test
+    fun `gunzip request and gzip response`() {
+        val handler = ServerFilters.GZip().then {
+            it shouldMatch hasBody(equalTo("hello"))
+            Response(OK).body(it.body)
+        }
+
+        handler(Request(GET, "/").header("accept-encoding", "gzip").header("transfer-encoding", "gzip").body("hello".toBody().gzipped())) shouldMatch
+            hasHeader("transfer-encoding", "gzip").and(hasBody(equalTo("hello".toBody().gzipped())))
+    }
+
+    @Test
+    fun `passes through non-gzipped request`() {
+        val handler = ServerFilters.GZip().then {
+            it shouldMatch hasBody("hello")
+            Response(OK).body("hello")
+        }
+
+        handler(Request(GET, "/").body("hello"))
     }
 }

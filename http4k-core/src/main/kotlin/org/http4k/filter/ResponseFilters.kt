@@ -12,8 +12,7 @@ object ResponseFilters {
     /**
      * Intercept the response after it is sent to the next service.
      */
-    fun Tap(fn: (Response) -> Unit) = Filter {
-        next ->
+    fun Tap(fn: (Response) -> Unit) = Filter { next ->
         {
             next(it).let {
                 fn(it)
@@ -22,8 +21,10 @@ object ResponseFilters {
         }
     }
 
-    fun ReportLatency(clock: Clock = Clock.systemUTC(), recordFn: (Request, Response, Duration) -> Unit): Filter = Filter {
-        next ->
+    /**
+     * Measure and report the latency of a request to the passed function.
+     */
+    fun ReportLatency(clock: Clock = Clock.systemUTC(), recordFn: (Request, Response, Duration) -> Unit): Filter = Filter { next ->
         {
             val start = clock.instant()
             val response = next(it)
@@ -32,5 +33,32 @@ object ResponseFilters {
             response
         }
     }
-}
 
+    /**
+     * Basic UnGZipping of Response. Does not currently support GZipping streams
+     */
+    fun GZip() = Filter { next ->
+        {
+            val originalResponse = next(it)
+            if( (it.header("accept-encoding") ?: "").contains("gzip", true)) {
+                originalResponse.let {
+                    val existingTransferEncodingHeader = it.header("transfer-encoding")?.let { ", " } ?: ""
+                    it.body(it.body.gzipped()).replaceHeader("transfer-encoding", existingTransferEncodingHeader + "gzip")
+                }
+            } else originalResponse
+        }
+    }
+
+    /**
+     * Basic UnGZipping of Response. Does not currently support GZipping streams
+     */
+    fun GunZip() = Filter { next ->
+        {
+            next(it).let { response ->
+                response.header("transfer-encoding")
+                    ?.let { if (it.contains("gzip")) it else null }
+                    ?.let { response.body(response.body.gunzipped()) } ?: response
+            }
+        }
+    }
+}
